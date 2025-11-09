@@ -1,6 +1,49 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const API_TIMEOUT = 5000; // 5 seconds
 
+// Weather condition to emoji mapping
+const WEATHER_EMOJIS = {
+  'sunny': '☀️',
+  'clear': '☀️',
+  'cloudy': '☁️',
+  'partly cloudy': '⛅',
+  'overcast': '☁️',
+  'rainy': '🌧️',
+  'drizzle': '🌦️',
+  'thunderstorm': '⛈️',
+  'stormy': '⛈️',
+  'snowy': '🌨️',
+  'blizzard': '❄️',
+  'hail': '🌨️',
+  'sleet': '🌨️',
+  'foggy': '🌫️',
+  'mist': '🌫️',
+  'windy': '💨',
+  'hot': '🌡️',
+  'cold': '🥶',
+  'humid': '💧',
+  'dry': '🏜️'
+};
+
+/**
+ * Normalizes raw weather data into consistent format
+ * @param {Object} rawData - Raw API response data
+ * @returns {Object} Normalized weather data with emoji
+ */
+function normalizeWeatherData(rawData) {
+  const condition = rawData.description?.toLowerCase() || 'unknown';
+  const temperature = Math.round(parseFloat(rawData.temperature) || 0);
+  const emoji = WEATHER_EMOJIS[condition] || '❓';
+
+  return {
+    location: rawData.location || 'Unknown Location',
+    temperature: temperature,
+    condition: rawData.description || 'Unknown',
+    emoji: emoji,
+    unit: rawData.unit || 'Celsius'
+  };
+}
+
 /**
  * Fetches weather data from the CGI endpoint
  * Uses Vite proxy in development (empty base URL) or direct URL in production
@@ -31,11 +74,12 @@ export async function fetchWeatherData(city = 'Wellington, New Zealand') {
     }
 
     const xmlText = await response.text();
-    const parsedData = parseWeatherXML(xmlText);
+    const rawData = parseWeatherXML(xmlText);
+    const normalizedData = normalizeWeatherData(rawData);
     
     return {
       success: true,
-      data: parsedData
+      data: normalizedData
     };
 
   } catch (error) {
