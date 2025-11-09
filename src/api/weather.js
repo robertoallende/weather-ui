@@ -31,16 +31,61 @@ const WEATHER_EMOJIS = {
  * @returns {Object} Normalized weather data with emoji
  */
 function normalizeWeatherData(rawData) {
-  const condition = rawData.description?.toLowerCase() || 'unknown';
-  const temperature = Math.round(parseFloat(rawData.temperature) || 0);
-  const emoji = WEATHER_EMOJIS[condition] || '❓';
+  // Validate input data
+  if (!rawData || typeof rawData !== 'object') {
+    throw new Error('Invalid weather data received');
+  }
+
+  // Handle temperature edge cases
+  let temperature = 0;
+  if (rawData.temperature) {
+    const tempValue = parseFloat(rawData.temperature);
+    if (isNaN(tempValue)) {
+      console.warn('Invalid temperature value:', rawData.temperature);
+      temperature = 0;
+    } else {
+      temperature = Math.round(tempValue);
+    }
+  }
+
+  // Handle condition mapping with fallbacks
+  const condition = rawData.description?.toLowerCase()?.trim() || 'unknown';
+  let emoji = WEATHER_EMOJIS[condition];
+  
+  // Try partial matching for compound conditions
+  if (!emoji) {
+    for (const [key, value] of Object.entries(WEATHER_EMOJIS)) {
+      if (condition.includes(key)) {
+        emoji = value;
+        break;
+      }
+    }
+  }
+  
+  // Final fallback
+  if (!emoji) {
+    emoji = '❓';
+    console.warn('Unknown weather condition:', rawData.description);
+  }
+
+  // Validate and clean location
+  let location = rawData.location?.trim() || 'Unknown Location';
+  if (location.length > 50) {
+    location = location.substring(0, 47) + '...';
+  }
+
+  // Validate and clean condition description
+  let conditionDisplay = rawData.description?.trim() || 'Unknown';
+  if (conditionDisplay.length > 30) {
+    conditionDisplay = conditionDisplay.substring(0, 27) + '...';
+  }
 
   return {
-    location: rawData.location || 'Unknown Location',
+    location: location,
     temperature: temperature,
-    condition: rawData.description || 'Unknown',
+    condition: conditionDisplay,
     emoji: emoji,
-    unit: rawData.unit || 'Celsius'
+    unit: rawData.unit?.trim() || 'Celsius'
   };
 }
 
@@ -70,6 +115,9 @@ export async function fetchWeatherData(city = 'Wellington, New Zealand') {
       if (response.status === 404) {
         throw new Error(`City "${city}" not found`);
       }
+      if (response.status === 500) {
+        throw new Error('Server error - weather service is unavailable');
+      }
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
@@ -85,42 +133,90 @@ export async function fetchWeatherData(city = 'Wellington, New Zealand') {
   } catch (error) {
     clearTimeout(timeoutId);
     
+    // Debug logging to identify error types
+    console.log('Error caught:', {
+      name: error.name,
+      message: error.message,
+      type: typeof error,
+      constructor: error.constructor.name
+    });
+    
+    // Timeout error
     if (error.name === 'AbortError') {
       return {
         success: false,
         error: {
           type: 'timeout',
-          message: 'Request timed out after 5 seconds'
+          message: 'Weather service is taking too long to respond. Please try again.',
+          userAction: 'Try refreshing the page or check your internet connection.'
         }
       };
     }
 
-    if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+    // Server errors (500, service unavailable)
+    if (error.message.includes('Server error') || 
+        error.message.includes('service is unavailable') ||
+        error.message.includes('HTTP 500')) {
+      return {
+        success: false,
+        error: {
+          type: 'network',
+          message: 'Weather service is currently unavailable.',
+          userAction: 'The server may be down. Please try again later.'
+        }
+      };
+    }
+
+    // Network connectivity errors (broader detection)
+    if (error.message.includes('fetch') || 
+        error.message.includes('Failed to fetch') || 
+        error.message.includes('NetworkError') ||
+        error.message.includes('ERR_CONNECTION_REFUSED') ||
+        error.message.includes('ECONNREFUSED') ||
+        error.name === 'TypeError' ||
+        !navigator.onLine) {
       console.error('Network error details:', error);
       return {
         success: false,
         error: {
           type: 'network',
-          message: `Unable to connect to weather service: ${error.message}`
+          message: 'Unable to connect to the weather service.',
+          userAction: 'Check your internet connection and try again.'
         }
       };
     }
 
-    if (error.message.includes('not found')) {
+    // City not found errors
+    if (error.message.includes('not found') || error.message.includes('404')) {
       return {
         success: false,
         error: {
           type: 'not_found',
-          message: error.message
+          message: error.message,
+          userAction: 'Please check the city name and try again.'
         }
       };
     }
 
+    // XML parsing errors
+    if (error.message.includes('parse') || error.message.includes('XML') || error.message.includes('Invalid')) {
+      return {
+        success: false,
+        error: {
+          type: 'parse_error',
+          message: 'Weather data format is invalid.',
+          userAction: 'This appears to be a server issue. Please try again later.'
+        }
+      };
+    }
+
+    // Generic fallback error
     return {
       success: false,
       error: {
-        type: 'parse_error',
-        message: 'Failed to parse weather data'
+        type: 'unknown',
+        message: 'An unexpected error occurred while fetching weather data.',
+        userAction: 'Please try again. If the problem persists, contact support.'
       }
     };
   }
