@@ -41,11 +41,16 @@ Weather UI application that fetches data from local CGI API and displays it in a
 
 ### Units In Progress
 #### 02. Data
-**Status:** Ready to begin - API abstraction layer with emoji mapping
+**Status:** Ready to begin subunit 001 - API service function with basic error handling
 
 ## Planned Units
 * **01_setup**: React project setup with Tailwind CSS and DaisyUI integration
 * **02_data**: API abstraction layer with error handling and emoji mapping
+  - **02_data_001**: API service function with configurable endpoint
+  - **02_data_002**: Data normalization and emoji mapping
+  - **02_data_003**: React hook integration with state management
+  - **02_data_004**: Enhanced error handling and edge cases
+  - **02_data_005**: Configuration documentation and README
 * **03_component**: Core weather display component matching design mockup
 * **04_responsive**: Mobile/desktop responsive design optimization
 
