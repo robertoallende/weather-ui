@@ -2,6 +2,12 @@
 
 React-based weather application displaying current weather information with clean, minimalist design. Fetches data from a configurable CGI API endpoint and displays it with emoji-based weather icons.
 
+## Screenshot
+
+![Weather UI Application](design/app-screenshot.png)
+
+*Weather UI showing live weather data for Wellington, New Zealand with emoji-based weather icons and clean typography.*
+
 ## About the Project
 
 ### What This Is
